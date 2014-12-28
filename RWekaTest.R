@@ -17,47 +17,79 @@ init <- function() {
         install.packages("RWeka")
     }
     
-    # Load RWeka
+    # Check if ggplot2 is installed
+    if (!is.installed("ggplot2")) {
+        print ("RWeka is not installed. Installing Now")
+        install.packages("ggplot2")
+    }
+    
+    # Load library
     library (RWeka)
+    library (ggplot2)
 }
 
-classifier <- function (formula, data, methodList) {
-    resultList <- list()
-    id <- names(methodList)
-    
-    for (i in 1:length(methodList)) {
-        resultList[[i]] <- methodList[[i]] (formula, data) 
-    }
-    
-    error = vector("numeric", length(resultList))
-    for (i in seq_along(resultList)) {
-        error[i] <- summary(resultList[[i]])$details['meanAbsoluteError']
-    }
-    error  
+NaiveBayes <- function (myFormula, myData) {
+    NB <- make_Weka_classifier("weka/classifiers/bayes/NaiveBayes")
+    NB(myFormula, myData)
 }
 
-irisClassifier <- function (fileName) {
+classifier <- function (fileName, key, model=".", label="") {
     # Read input file
-    irisData <- read.csv(fileName)
+    myData <- read.csv(fileName)
     
     # Create formula for iris
-    irisFormula <- species ~ sepal_l + sepal_w + petal_l + petal_w
+    #myFormula <- species ~ sepal_l + sepal_w + petal_l + petal_w
+    myFormula <- as.formula(paste(key, model, sep="~"))
     
     # List of method to be tested
-    methodList = list(SMO=SMO, JRip=JRip, J48=J48)
+    #methodList = list(SMO=SMO, JRip=JRip, NaiveBayes=NaiveBayes, Logistic=Logistic)
+    methodList = list(SMO=SMO, JRip=JRip, NaiveBayes=NaiveBayes)
+                      
+    # run classifier model
+    resultList <- list()
+    for (i in 1:length(methodList)) {
+        resultList[[i]] <- methodList[[i]] (myFormula, myData) 
+        print(summary(resultList[[i]]))
+    }
     
-    # start classify
-    irisResult <- classifier (irisFormula, irisData, methodList)
+    # get mean absolut error from classifier
+    errorList = vector("numeric", length(resultList))
+    for (i in seq_along(resultList)) {
+        errorList[i] <- summary(resultList[[i]])$details['meanAbsoluteError']
+    }
     
     # list of method names
-    methodNames <- names(irisResult)
+    methodNames <- names(methodList)
+
+    #par(mfrow=c(2,2))
+    barplot(errorList, names.arg=methodNames, 
+            xlab=label, ylab="meanAbsoluteError",ylim=c(0,1))
+    for (i in seq_along(errorList)) {
+        text(i,errorList[i]+0.05, sprintf("%.3f",errorList[i]))
+    }
+}
+
+runAll <- function () {
+    init()
+    par(mfrow=c(2,2))
+    classifier("iris.csv","species", label = "Iris data")
+    classifier("ionosphere.csv","class", label = "Ionosphere data")
+    classifier("soybean_large.csv","class", label = "Soybean data")
+}
+
+testIris <- function () {
+    init()
+    par(mfrow=c(3,4))
+    classifier("iris.csv","species","sepal_w + petal_l + petal_w", "no sepal_l")
+    classifier("iris.csv","species","sepal_l + petal_l + petal_w", "no sepal_w")
+    classifier("iris.csv","species","sepal_l + sepal_w + petal_w", "no petal_l")
+    classifier("iris.csv","species","sepal_l + sepal_w + petal_l", "no petal_w")
     
-    print(irisResult)
-    #barplot(irisResult, names.arg=methodNames)
-    #par(pch=22, col="red")
-    #par(mfrow=c(2,4), xrange=1:3)
-    #plot(seq_along(irisResult), irisResult, type = "o")
-    #lines(irisResult,names.arg=methodNames)
+    classifier("iris.csv","species","petal_l + petal_w", "petal only")
+    classifier("iris.csv","species","sepal_l + sepal_w", "sepal only")
+    classifier("iris.csv","species","sepal_l + petal_l", "length only")
+    classifier("iris.csv","species","sepal_w + petal_w", "width only")
     
-    ggplot(data.frame(seq_along(irisResult),irisResult),  aes(x=time, y=total_bill, group=1)) + geom_line() + geom_point()
+    classifier("iris.csv","species","sepal_l + sepal_w + petal_l + petal_w", "All")
+    
 }
