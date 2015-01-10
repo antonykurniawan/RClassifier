@@ -201,3 +201,50 @@ combIon <- function() {
     write.xlsx (maxSummary,'ionosphere.xlsx', sheetName='maxSummary', append=TRUE)
     
 }
+
+
+combSoy <- function() {
+    init()
+    
+    myData <- read.csv("soybean_large.csv")
+    
+    attr <- names(myData[2:36])
+    combinationId <- c(34,35)
+    for (i in combinationId) {
+        combine <- combn(attr, i)
+        for (j in 1:ncol(combine)) {
+            formula <- paste(combine[,j], collapse='+')
+            print(formula)
+            
+            if (j==1) {
+                tempRes <- classifier("soybean_large.csv", "class", formula)
+                matrixRes <- matrix(tempRes, ncol=4 )
+                colnames (matrixRes) <- names(tempRes)
+            } else {
+                matrixRes <- rbind (matrixRes, classifier("soybean_large.csv","class", formula))
+            }
+        }
+        
+        
+        if (i==combinationId[1]) {
+            meanSummary <- matrix(apply(matrixRes,2,mean), ncol=4)
+            minSummary <- matrix(apply(matrixRes,2,min), ncol=4)
+            maxSummary <- matrix(apply(matrixRes,2,max), ncol=4)
+            write.xlsx (matrixRes,'soybean.xlsx', sheetName=paste('matrixRes',i))
+        } else {
+            meanSummary <- rbind(meanSummary, apply(matrixRes,2,mean))
+            minSummary <- rbind(minSummary, apply(matrixRes,2,min))
+            maxSummary <- rbind(maxSummary, apply(matrixRes,2,max))
+            write.xlsx (matrixRes,'soybean.xlsx', sheetName=paste('matrixRes',i), append=TRUE)
+        }
+    }
+    
+    par(mfrow=c(3,1))
+    barplot (meanSummary, beside=TRUE, col=c('red','green'), names.arg=names(matrixRes))
+    barplot (minSummary, beside=TRUE, col=c('red','green'), names.arg=names(matrixRes))
+    barplot (maxSummary, beside=TRUE, col=c('red','green'), names.arg=names(matrixRes))
+    write.xlsx (meanSummary,'soybean.xlsx', sheetName='meanSummary', append=TRUE)
+    write.xlsx (minSummary,'soybean.xlsx', sheetName='minSummary', append=TRUE)
+    write.xlsx (maxSummary,'soybean.xlsx', sheetName='maxSummary', append=TRUE)
+    
+}
